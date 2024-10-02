@@ -1,0 +1,35 @@
+Name,Tax_ID,Department,Salary
+John Doe,123456789,Engineering,75000
+Jane Smith,987654321,Marketing,60000
+Mike Johnson,456789012,Finance,80000
+Emily Davis,789012345,Human Resources,55000
+Samantha Brown,111223333,Research,65000
+David Wilson,444556666,Operations,70000
+Olivia Thompson,777889999,IT,90000
+Daniel Martinez,222334444,Engineering,75000
+Sophia Anderson,555667777,Marketing,60000
+Matthew Taylor,888990000,Finance,80000
+Ava Hernandez,333445555,Human Resources,55000
+William Garcia,666778888,Research,65000
+Emma Lopez,999001111,Operations,70000
+James Lee,444556666,IT,90000
+Mia Clark,777889999,Engineering,75000
+Benjamin Rodriguez,222334444,Marketing,60000
+Evelyn Lewis,555667777,Finance,80000
+Alexander Walker,888990000,Human Resources,55000
+Abigail Hall,333445555,Research,65000
+Daniel Young,666778888,Operations,70000
+Elizabeth Allen,999001111,IT,90000
+Michael Hernandez,111223334,Engineering,75000
+Emily Davis,789012345,Marketing,60000
+Mikez Johnsonz,456789010,Finance,80001
+John Doe,123456789,Human Resources,55000
+Jane Smith,987654321,Research,65000
+Samantha Brown,111223333,Operations,70000
+David Wilson,444556666,IT,90000
+Olivia Thompson,777889999,Engineering,75000
+Daniel Martinez,222334444,Marketing,60000
+Sophia Anderson,555667777,Finance,80000
+Matthew Taylor,888990000,Human Resources,55000
+Ava Hernandez,333445555,Research,65000
+William Garcia,666778888,Operations,70000

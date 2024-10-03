@@ -6,17 +6,17 @@ function Open-File {
         .DESCRIPTION
             Opens a file dialog that lets the user Open a file. The file type can be specified; defaults to all file types.
 
-        .PARAMETER FileType
+        .PARAMETER fileType
             The file extension to filter by in the file dialog. Default is "All files (*.*)".
 
-        .PARAMETER Title
+        .PARAMETER title
             The title of the file dialog. Default is "Open a File".
 
-        .PARAMETER InitialDirectory
+        .PARAMETER initialDirectory
             The initial directory to display in the file dialog. Default is the directory of the script.
 
         .EXAMPLE
-            Open-File -FileType "*.txt"
+            Open-File -fileType "*.txt"
             Opens a dialog allowing only text files to be selected.
 
         .EXAMPLE
@@ -34,14 +34,14 @@ function Open-File {
     [CmdletBinding()]
     Param(
         [ValidatePattern('^\*\.[a-zA-Z0-9]+$|^All files \(\*\.\*\)$')]
-        [string]$FileType = "All files (*.*)",
-        [string]$Title = "Select a File",
-        [string]$InitialDirectory = ""
+        [string]$fileType = "All files (*.*)",
+        [string]$title = "Select a File",
+        [string]$initialDirectory = ""
     )
     $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openFileDialog.Title = $Title
-    $openFileDialog.Filter = "$FileType|$FileType"
-    $openFileDialog.InitialDirectory = $InitialDirectory
+    $openFileDialog.title = $title
+    $openFileDialog.Filter = "$fileType|$fileType"
+    $openFileDialog.initialDirectory = $initialDirectory
     $result = $openFileDialog.ShowDialog()
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         $selectedFile = $openFileDialog.FileName

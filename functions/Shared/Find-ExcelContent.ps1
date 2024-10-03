@@ -1,14 +1,15 @@
 . "../Shared/Compare-Strings.ps1"
-function Process-CSV-File {
+
+function Find-ExcelContent {
     <#
         .SYNOPSIS
             Finds matching strings within a specified tolerance in a CSV file. Either returns the entire rows or just the matching values.
 
         .DESCRIPTION
-            The Process-CSV-File function searches for matching strings within a specified tolerance in a CSV file. 
+            The Find-ExcelContent function searches for matching strings within a specified tolerance in a CSV file. 
             It compares the search value with the values in the specified column of the CSV file and returns either the matching strings or the entire row.
 
-        .PARAMETER SelectedFile
+        .PARAMETER selectedFile
             Specifies the path to the CSV file. Must be CSV File because it searches by column name and optionally returns the entire row.
 
         .PARAMETER searchVal
@@ -24,11 +25,11 @@ function Process-CSV-File {
             Specifies whether to return the entire row or just the matching value. Use "y" to return the entire row, and any other value to return just the matching value.
 
         .EXAMPLE
-            Process-CSV-File -SelectedFile "C:\path\to\file.csv" -searchVal "apple" -columnName "Fruit" -tolerance 2 -returnWholeRow "y"
+            Find-ExcelContent -selectedFile "C:\path\to\file.csv" -searchVal "apple" -columnName "Fruit" -tolerance 2 -returnWholeRow "y"
             This example searches for the value "apple" within the "Fruit" column of the CSV file located at "C:\path\to\file.csv". It allows a tolerance of 2 characters for string comparison and returns the entire row for each matching string.
 
         .EXAMPLE
-            Process-CSV-File -SelectedFile "C:\path\to\file.csv" -searchVal "banana" -columnName "Fruit" -tolerance 1 -returnWholeRow "n"
+            Find-ExcelContent -selectedFile "C:\path\to\file.csv" -searchVal "banana" -columnName "Fruit" -tolerance 1 -returnWholeRow "n"
             This example searches for the value "banana" within the "Fruit" column of the CSV file located at "C:\path\to\file.csv". It allows a tolerance of 1 character for string comparison and returns only the matching value for each match.
 
         .OUTPUTS
@@ -42,23 +43,35 @@ function Process-CSV-File {
     #>
     [CmdletBinding()]
     param (
-        [string]$SelectedFile,
+        [string]$selectedFile,
         [string]$searchVal,
         [string]$columnName,
         [int]$tolerance,
-        [string]$returnWholeRow
+        [string]$returnWholeRow,
+        [string]$useRegex
     )
-    $csvData = Import-Csv -Path $SelectedFile
+    $csvData = Import-Excel -Path $selectedFile
     $matchingStringsResults = @()
     foreach ($row in $csvData) {
         $currentVal = $row.$columnName
-        if (Compare-Strings -Str1 $searchVal -Str2 $currentVal -Tolerance $tolerance) {
-            if ($returnWholeRow -eq "y") {
-                $matchingStringsResults += $row
-            } else {
-                $matchingStringsResults += [PSCustomObject]@{$columnName = $currentVal}
+        if ($useRegex -eq "y") {
+            if (Compare-StringsRegex -Str1 $searchVal -Str2 $currentVal -Tolerance $tolerance) {
+                if ($returnWholeRow -eq "y") {
+                    $matchingStringsResults += $row
+                } else {
+                    $matchingStringsResults += [PSCustomObject]@{$columnName = $currentVal}
+                }
+            }
+        } else {
+            if (Compare-Strings -Str1 $searchVal -Str2 $currentVal -Tolerance $tolerance) {
+                if ($returnWholeRow -eq "y") {
+                    $matchingStringsResults += $row
+                } else {
+                    $matchingStringsResults += [PSCustomObject]@{$columnName = $currentVal}
+                }
             }
         }
     }
     return $matchingStringsResults
 }
+

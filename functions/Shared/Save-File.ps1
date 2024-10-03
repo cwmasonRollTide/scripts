@@ -1,50 +1,96 @@
 Add-Type -AssemblyName System.Windows.Forms
+Import-Module ImportExcel
+
+$exportMethods = @{
+    ".xlsx" = @{
+        ValidTypes = @("Object[]", "PSCustomObject[]")
+        ExportFunction = { param($content, $FilePath) 
+            $content | Export-Excel -Path $FilePath -Show -AutoSize -AutoFilter -FreezeTopRow -BoldTopRow 
+        }
+    }
+    ".xls" = @{
+        ValidTypes = @("Object[]", "PSCustomObject[]")
+        ExportFunction = { param($content, $FilePath) 
+            $content | Export-Excel -Path $FilePath -Show -AutoSize -AutoFilter -FreezeTopRow -BoldTopRow 
+        }
+    }
+    ".csv" = @{
+        ValidTypes = @("Object[]", "PSCustomObject[]")
+        ExportFunction = { param($content, $FilePath) 
+            $content | Export-Csv -Path $FilePath -NoTypeInformation 
+        }
+    }
+    ".json" = @{
+        ValidTypes = @("Object[]", "PSCustomObject[]", "Hashtable", "PSObject")
+        ExportFunction = { param($content, $FilePath) 
+            $content | ConvertTo-Json -Depth 100 | Set-Content -Path $FilePath 
+        }
+    }
+    ".xml" = @{
+        ValidTypes = @("XmlDocument", "Object[]", "PSCustomObject[]")
+        ExportFunction = { param($content, $FilePath) 
+            if ($content -is [System.Xml.XmlDocument]) {
+                $content.Save($FilePath)
+            } else {
+                $content | Export-Clixml -Path $FilePath
+            }
+        }
+    }
+    ".txt" = @{
+        ValidTypes = @("String", "Object[]", "PSCustomObject[]")
+        ExportFunction = { param($content, $FilePath) 
+            if ($content -is [string]) {
+                [System.IO.File]::WriteAllText($FilePath, $content)
+            } else {
+                $content | Out-File -FilePath $FilePath
+            }
+        }
+    }
+}
 
 function Save-File {
-    <#
-        .SYNOPSIS
-            Saves a file with user-defined options for title and file type.
-        
-        .DESCRIPTION
-            Opens a save file dialog that allows the user to save a file with options for specifying the title and the file type filter.
-        
-        .PARAMETER Title
-            The title of the save file dialog. Default is 'Save the File'.
-        
-        .PARAMETER FileType
-            The file type filter for the save dialog. Default is 'All Files (*.*)'.
-        
-        .EXAMPLE
-            Save-File
-            Opens a save dialog with the default title and file type filter.
-        
-        .EXAMPLE
-            Save-File -Title "Export CSV File" -FileType "*.csv"
-            Opens a save dialog with a custom title and filter for CSV files only.
-        
-        .Notes
-            Author: Connor Mason
-            Date: 10/2/2024
-    #>
     [CmdletBinding()]
     Param(
-        [ValidatePattern('^\*\.[a-zA-Z0-9]+$|^All files \(\*\.\*\)$')]
-        [string]$FileType = "*.",
-        [string]$Title = "Select a File",
-        [string]$InitialDirectory = "",
-        [object[]]$MatchingStringsResults = @()
+        [Parameter(Mandatory=$true)]
+        [object]$content,
+        [string]$title = "Save File",
+        [string]$initialDirectory = "",
+        [string]$fileTypeFilter = "All Files (*.*)|*.*"
     )
+
     $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
-    $saveFileDialog.Title = $Title
-    $saveFileDialog.Filter = "$FileType|$FileType"
-    $saveFileDialog.InitialDirectory = $InitialDirectory
+    $saveFileDialog.title = $title
+    $saveFileDialog.initialDirectory = $initialDirectory
+    $saveFileDialog.Filter = $fileTypeFilter
     $result = $saveFileDialog.ShowDialog()
+
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-        $resultFile = $saveFileDialog.FileName
-        $MatchingStringsResults | Export-Csv -Path $resultFile -NoTypeInformation
-        Write-Host "Results file saved: $resultFile"
+        $filePath = $saveFileDialog.FileName
+        $fileExtension = [System.IO.Path]::GetExtension($filePath).ToLower()
+        $contentType = $content.GetType().Name
+
+        try {
+            if ($exportMethods.ContainsKey($fileExtension)) {
+                $method = $exportMethods[$fileExtension]
+                if ($contentType -in $method.ValidTypes) {
+                    & $method.ExportFunction $content $filePath # Call the export function with & to avoid security restrictions
+                } else {
+                    throw "content type $contentType is not suitable for $fileExtension export."
+                }
+            } else {
+                # Default case for unknown file types
+                $stringContent = $content | Out-String
+                [System.IO.File]::WriteAllText($filePath, $stringContent)
+            }
+
+            Write-Host "File saved successfully to: $filePath"
+            return $filePath
+        } catch {
+            Write-Error "Failed to save file: $_"
+            return $null
+        }
     } else {
-        Write-Host "No file was selected to save the results."
-        exit
+        Write-Host "Save operation cancelled."
+        return $null
     }
 }

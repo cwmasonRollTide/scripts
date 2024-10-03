@@ -1,7 +1,8 @@
 . "../Shared/Save-File.ps1"
 . "../Shared/Open-File.ps1"
 . "../Shared/Compare-Strings.ps1"
-. "../Shared/Process-CSV-File.ps1"
+. "../Shared/Find-ExcelContent.ps1"
+Import-Module ImportExcel
 Add-Type -AssemblyName System.Windows.Forms
 
 function Search-CSV {
@@ -13,7 +14,6 @@ function Search-CSV {
         .DESCRIPTION
             Prompts the user to select a CSV file, enter a search value, a column name, and a tolerance level.
             Prompts the user to return whole row or just the specified column's value results.
-            Prompts the user to select a CSV file to save the results in.
             Searches for strings that are similar to the provided search value within the specified tolerance.
             Results can be returned for the whole row or just the specified column.
 
@@ -27,7 +27,7 @@ function Search-CSV {
     #>
     [CmdletBinding()]
     Param()
-    # Define a safe initial directory using environment variables and fallbacks
+
     $initialDirectory = $PWD.Path 
     if (-not (Test-Path -Path $initialDirectory)) {
         $initialDirectory = $env:USERPROFILE 
@@ -35,33 +35,95 @@ function Search-CSV {
     if (-not (Test-Path -Path $initialDirectory)) {
         $initialDirectory = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Desktop)
     }
-    $selectedFile = Open-File -Title "Select the Input CSV File" -FileType "*.csv" -InitialDirectory $initialDirectory
 
-    # Get user input vars to inform the search
-    $searchVal = Read-Host "Please enter the value you are searching for"
-    if (-not $searchVal -is [string]) {
-        $searchVal = $searchVal.ToString()
+    $selectedFile = Open-File -Title "Select the Input File" -InitialDirectory $initialDirectory
+    $searchVal = Get-ValidatedInput `
+        -Prompt "Please enter the value you are searching for" `
+        -Pattern '^[\w\s\-.,;:!?@#$%^&*()_+=\[\]{}|\\/<>~`"'']+$' `
+        -ErrorMessage "Invalid input. Please enter a valid search value."
+    if (-not $searchVal) { return }
+    $columnName = Get-ValidatedInput `
+        -Prompt "Enter the column name that contains the value you are searching for" `
+        -Pattern '^[a-zA-Z0-9_]+$' `
+        -ErrorMessage "Invalid input. Please enter a valid column name."
+    if (-not $columnName) { return }
+    $tolerance = Get-ToleranceInput
+    $returnWholeRow = Get-YesNoInput "Do you want to return the whole row when we find matches within the tolerance you set? (y/n)"
+    if (-not $returnWholeRow) { return }
+    $useRegex = Get-YesNoInput "Do you want to use regex pattern matching for comparison? (y/n)"
+    if (-not $useRegex) { return }
+
+    try {
+        $matchingStringsResults = Find-ExcelContent `
+            -SelectedFile $selectedFile `
+            -SearchVal $searchVal `
+            -ColumnName $columnName `
+            -Tolerance $tolerance `
+            -ReturnWholeRow $returnWholeRow `
+            -UseRegex $useRegex
     }
-    $columnName = Read-Host "Enter the column name that contains the value you are searching for"
-    $tolerance = Read-Host "Enter the number of characters the string can be off by to still be returned in the search"
-    while ($tolerance -notmatch '^[0-9]$' -or [int]$tolerance -gt 9) {
-        Write-Host "Invalid input. Please enter a number between 0 and 9."
-        $tolerance = Read-Host "Enter the number of digits the SSN can be off by to still be returned in the search"
-    }
-    $returnWholeRow = Read-Host "Do you want to return the whole row when we find matches within the tolerance you set? (y/n)"
-    while ($returnWholeRow -notmatch '^[ynYN]$') {
-        Write-Host "Invalid input. Please enter y or n."
-        $returnWholeRow = Read-Host "Do you want to return the whole row when we find matches within the tolerance you set? (y/n)"
+    catch {
+        Write-Error "An error occurred while searching the file: $_"
+        return
     }
 
-    $matchingStringsResults = Process-CSV-File -SelectedFile $selectedFile -SearchVal $searchVal -ColumnName $columnName -Tolerance $tolerance -ReturnWholeRow $returnWholeRow
+    if ($matchingStringsResults.Count -eq 0) {
+        Write-Host "No matching results found."
+        return
+    }
 
-    Save-File -Title "Save the Results File" -FileType "*.csv" -MatchingStringsResults $matchingStringsResults -InitialDirectory $initialDirectory
-    Display-Results -Results $matchingStringsResults
+    $savedFilePath = Save-File `
+        -Content $matchingStringsResults `
+        -Title "Save the Results File" `
+        -FileTypeFilter "Excel Files (*.xlsx)|*.xlsx" `
+        -InitialDirectory $initialDirectory
+    if ($savedFilePath) {
+        Write-Host "Results saved to: $savedFilePath"
+    }
+
+    Show-Results -Results $matchingStringsResults
     Read-Host -Prompt "Press Enter to exit"
 }
 
-function Display-Results {
+function Get-ValidatedInput {
+    param (
+        [string]$prompt,
+        [string]$pattern,
+        [string]$errorMessage
+    )
+    $input = Read-Host $prompt
+    if (-not $input -is [string]) {
+        $input = $input.ToString()
+    }
+    if ($input -notMatch $pattern) {
+        Write-Host $errorMessage
+        return $null
+    }
+    return $input
+}
+
+function Get-ToleranceInput {
+    $tolerance = Read-Host "Enter the number of characters the string can be off by to still be returned in the search"
+    while ($tolerance -notmatch '^[0-9]$' -or [int]$tolerance -gt 9) {
+        Write-Host "Invalid input. Please enter a number between 0 and 9."
+        $tolerance = Read-Host "Enter the number of characters the string can be off by to still be returned in the search"
+    }
+    return [int]$tolerance
+}
+
+function Get-YesNoInput {
+    param (
+        [string]$prompt
+    )
+    $input = Read-Host $prompt
+    while ($input -notmatch '^[ynYN]$') {
+        Write-Host "Invalid input. Please enter y or n."
+        $input = Read-Host $prompt
+    }
+    return $input -eq 'y' -or $input -eq 'Y'
+}
+
+function Show-Results {
     Param(
         [Parameter(Mandatory=$true)]
         [System.Object[]]$Results

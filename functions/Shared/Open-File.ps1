@@ -34,13 +34,13 @@ function Open-File {
     [CmdletBinding()]
     Param(
         [ValidatePattern('^\*\.[a-zA-Z0-9]+$|^All files \(\*\.\*\)$')]
-        [string]$fileType = "All files (*.*)",
+        [string]$fileTypeFilter = "All files (*.*)",
         [string]$title = "Select a File",
         [string]$initialDirectory = ""
     )
     $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openFileDialog.title = $title
-    $openFileDialog.Filter = "$fileType|$fileType"
+    $openFileDialog.Filter = $fileTypeFilter
     $openFileDialog.initialDirectory = $initialDirectory
     $result = $openFileDialog.ShowDialog()
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {

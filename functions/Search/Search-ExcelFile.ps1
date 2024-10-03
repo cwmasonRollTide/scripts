@@ -5,7 +5,7 @@
 Import-Module ImportExcel
 Add-Type -AssemblyName System.Windows.Forms
 
-function Search-CSV {
+function Search-ExcelFile {
     <#
         .SYNOPSIS
             Searches for similar strings in a CSV file that fit within a user-defined tolerance. 
@@ -18,7 +18,7 @@ function Search-CSV {
             Results can be returned for the whole row or just the specified column.
 
         .EXAMPLE
-            Search-CSV
+            Search-ExcelFile
             This will execute the function and prompt for necessary input.
 
         .NOTES
@@ -36,20 +36,27 @@ function Search-CSV {
         $initialDirectory = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Desktop)
     }
 
-    $selectedFile = Open-File -Title "Select the Input File" -InitialDirectory $initialDirectory
+    $selectedFile = Open-File `
+        -Title "Select the Input Excel File" `
+        -InitialDirectory $initialDirectory `
+        -FileTypeFilter "Excel Files (*.xlsx)|*.xlsx" 
+
     $searchVal = Get-ValidatedInput `
         -Prompt "Please enter the value you are searching for" `
         -Pattern '^[\w\s\-.,;:!?@#$%^&*()_+=\[\]{}|\\/<>~`"'']+$' `
         -ErrorMessage "Invalid input. Please enter a valid search value."
     if (-not $searchVal) { return }
+
     $columnName = Get-ValidatedInput `
         -Prompt "Enter the column name that contains the value you are searching for" `
         -Pattern '^[a-zA-Z0-9_]+$' `
         -ErrorMessage "Invalid input. Please enter a valid column name."
     if (-not $columnName) { return }
+
     $tolerance = Get-ToleranceInput
     $returnWholeRow = Get-YesNoInput "Do you want to return the whole row when we find matches within the tolerance you set? (y/n)"
     if (-not $returnWholeRow) { return }
+
     $useRegex = Get-YesNoInput "Do you want to use regex pattern matching for comparison? (y/n)"
     if (-not $useRegex) { return }
 
@@ -75,8 +82,8 @@ function Search-CSV {
     $savedFilePath = Save-File `
         -Content $matchingStringsResults `
         -Title "Save the Results File" `
-        -FileTypeFilter "Excel Files (*.xlsx)|*.xlsx" `
-        -InitialDirectory $initialDirectory
+        -InitialDirectory $initialDirectory `
+        -FileTypeFilter "Excel Files (*.xlsx)|*.xlsx" 
     if ($savedFilePath) {
         Write-Host "Results saved to: $savedFilePath"
     }
@@ -84,6 +91,8 @@ function Search-CSV {
     Show-Results -Results $matchingStringsResults
     Read-Host -Prompt "Press Enter to exit"
 }
+
+## Helper Functions
 
 function Get-ValidatedInput {
     param (
@@ -133,4 +142,4 @@ function Show-Results {
     }
 }
 
-Search-CSV
+Search-ExcelFile

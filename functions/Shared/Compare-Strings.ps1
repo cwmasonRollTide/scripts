@@ -89,7 +89,7 @@ function Compare-StringsRegex {
    )
 
    function New-tolerancePattern([string]$str) {
-      $pattern = "^" + ($str.ToCharArray() | ForEach-Object { "($([regex]::Escape($_))|.){1}" }) -join ""
+      $pattern = "^" + ($str.ToCharArray() | ForEach-Object { "($([regex]::Escape($_))|.){1}" }) -join ""# Create a regex pattern that allows for a certain number of differences
       return $pattern + "{0,$tolerance}$"
    }
 

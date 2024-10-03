@@ -1,3 +1,5 @@
+Add-Type -AssemblyName System.Windows.Forms
+
 function Open-File {
     <#
         .SYNOPSIS
@@ -33,7 +35,6 @@ function Open-File {
     #>
     [CmdletBinding()]
     Param(
-        [ValidatePattern('^\*\.[a-zA-Z0-9]+$|^All files \(\*\.\*\)$')]
         [string]$fileTypeFilter = "All files (*.*)",
         [string]$title = "Select a File",
         [string]$initialDirectory = ""

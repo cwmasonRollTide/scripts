@@ -1,18 +1,19 @@
 . "../Shared/Save-File.ps1"
 . "../Shared/Open-File.ps1"
+. "../Shared/Get-LargeTextInput.ps1"
 . "../Shared/Compare-Strings.ps1"
-. "../Shared/Find-ExcelContent.ps1"
+. "./Find-ExcelContent.ps1"
 Import-Module ImportExcel
 Add-Type -AssemblyName System.Windows.Forms
 
 function Search-ExcelFile {
     <#
         .SYNOPSIS
-            Searches for similar strings in a CSV file that fit within a user-defined tolerance. 
+            Searches for similar strings in an excel file that fit within a user-defined tolerance. 
             Can return the whole row of data for each match found or just the specified column's value.
 
         .DESCRIPTION
-            Prompts the user to select a CSV file, enter a search value, a column name, and a tolerance level.
+            Prompts the user to select an excel file, enter a search value, a column name, and a tolerance level.
             Prompts the user to return whole row or just the specified column's value results.
             Searches for strings that are similar to the provided search value within the specified tolerance.
             Results can be returned for the whole row or just the specified column.
@@ -41,60 +42,58 @@ function Search-ExcelFile {
         -InitialDirectory $initialDirectory `
         -FileTypeFilter "Excel Files (*.xlsx)|*.xlsx" 
 
-    $searchVal = Get-ValidatedInput `
+    $searchVal = Get-ValidatedStringInput `
         -Prompt "Please enter the value you are searching for" `
         -Pattern '^[\w\s\-.,;:!?@#$%^&*()_+=\[\]{}|\\/<>~`"'']+$' `
         -ErrorMessage "Invalid input. Please enter a valid search value."
     if (-not $searchVal) { return }
 
-    $columnName = Get-ValidatedInput `
+    $columnName = Get-ValidatedStringInput `
         -Prompt "Enter the column name that contains the value you are searching for" `
         -Pattern '^[a-zA-Z0-9_]+$' `
         -ErrorMessage "Invalid input. Please enter a valid column name."
     if (-not $columnName) { return }
 
     $tolerance = Get-ToleranceInput
-    $returnWholeRow = Get-YesNoInput "Do you want to return the whole row when we find matches within the tolerance you set? (y/n)"
+    $returnWholeRow = Get-YesNoInput-Bool "Do you want to return the whole row when we find matches within the tolerance you set? (y/n)"
     if (-not $returnWholeRow) { return }
 
-    $useRegex = Get-YesNoInput "Do you want to use regex pattern matching for comparison? (y/n)"
-    if (-not $useRegex) { return }
-
     try {
+        Write-Host "Searching file. This may take a while for large datasets..."
         $matchingStringsResults = Find-ExcelContent `
             -SelectedFile $selectedFile `
             -SearchVal $searchVal `
             -ColumnName $columnName `
             -Tolerance $tolerance `
-            -ReturnWholeRow $returnWholeRow `
-            -UseRegex $useRegex
+            -ReturnWholeRow $returnWholeRow 
+
+        $resultCount = $matchingStringsResults.Count
+        Write-Host "Found $resultCount matching results."
+
+        if ($resultCount -gt 0) {
+            $saveResults = Get-YesNoInput-Bool "Do you want to save the results? (y/n)"
+            if ($saveResults) {
+                $savedFilePath = Save-File `
+                    -Content $matchingStringsResults `
+                    -Title "Save the Results File" `
+                    -InitialDirectory $initialDirectory `
+                    -FileTypeFilter "Excel Files (*.xlsx)|*.xlsx" 
+                if ($savedFilePath) {
+                    Write-Host "Results saved to: $savedFilePath"
+                }
+            }
+        }
     }
     catch {
         Write-Error "An error occurred while searching the file: $_"
-        return
     }
 
-    if ($matchingStringsResults.Count -eq 0) {
-        Write-Host "No matching results found."
-        return
-    }
-
-    $savedFilePath = Save-File `
-        -Content $matchingStringsResults `
-        -Title "Save the Results File" `
-        -InitialDirectory $initialDirectory `
-        -FileTypeFilter "Excel Files (*.xlsx)|*.xlsx" 
-    if ($savedFilePath) {
-        Write-Host "Results saved to: $savedFilePath"
-    }
-
-    Show-Results -Results $matchingStringsResults
     Read-Host -Prompt "Press Enter to exit"
 }
 
 ## Helper Functions
 
-function Get-ValidatedInput {
+function Get-ValidatedStringInput {
     param (
         [string]$prompt,
         [string]$pattern,
@@ -120,7 +119,21 @@ function Get-ToleranceInput {
     return [int]$tolerance
 }
 
-function Get-YesNoInput {
+function Get-YesNoInput-Bool {
+    <#
+        Prompts the user for a yes or no input and returns a boolean value.
+
+        .PARAMETER prompt
+            The message to display to the user when prompting for input.
+
+        .EXAMPLE
+            Get-YesNoInput "Do you want to continue? (y/n)"
+            This example prompts the user with the message "Do you want to continue? (y/n)" and returns a boolean value based on the user's input.
+
+        .OUTPUTS
+            System.Boolean
+            Returns $true if the user enters 'y' or 'Y', and $false if the user enters 'n' or 'N'.
+    #>
     param (
         [string]$prompt
     )
@@ -130,16 +143,6 @@ function Get-YesNoInput {
         $input = Read-Host $prompt
     }
     return $input -eq 'y' -or $input -eq 'Y'
-}
-
-function Show-Results {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [System.Object[]]$Results
-    )
-    $Results | ForEach-Object {
-        $_ | Format-Table -AutoSize
-    }
 }
 
 Search-ExcelFile

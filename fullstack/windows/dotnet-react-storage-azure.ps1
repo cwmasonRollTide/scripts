@@ -1,16 +1,8 @@
-# PowerShell script for setting up a full-stack .NET and React project with Azure deployment
-# Assumes you have the Azure CLI installed and logged in
-# Assumes you have the Docker Desktop installed
-# Assumes you have the .NET SDK installed
-# Assumes you have the Node.js installed
-# Assumes you will host this code in an Azure DevOps pipeline for deployment to work
-
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
 
 $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-$folderBrowser.Description = "Select the base directory for your project"
-$folderBrowser.RootFolder = 'C:\'
+$folderBrowser.Description = 'Select the folder to scan'
+$folderBrowser.RootFolder = [System.Environment+SpecialFolder]::MyComputer
 $folderBrowser.ShowNewFolderButton = $true
 
 if ($folderBrowser.ShowDialog() -eq 'OK') {
@@ -116,6 +108,9 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 "@ | Out-File -FilePath "Dockerfile"
 
+# Prompt for MongoDB database name
+$mongoDbName = Read-Host "Enter the MongoDB database name"
+
 # Docker Compose setup
 Set-Location ".."
 @"
@@ -136,17 +131,15 @@ services:
     depends_on:
       - backend
   db:
-    image: postgres:14.1
+    image: mongo
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      MONGO_INITDB_DATABASE: $mongoDbName
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - mongo-data:/data/db
 volumes:
-  db-data:
+  mongo-data:
 "@ | Out-File -FilePath "docker-compose.yml"
 
 # Azure DevOps pipeline setup in github workflows
